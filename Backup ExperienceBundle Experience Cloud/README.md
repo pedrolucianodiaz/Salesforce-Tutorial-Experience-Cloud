@@ -1,6 +1,6 @@
 # Backup de Experience Cloud con ExperienceBundle Metadata API
 
-**Aplica a:** Salesforce Experience Cloud (sitios LWR), Commerce Cloud B2B  
+**Aplica a:** Salesforce Experience Cloud (cualquier nube que use sitios LWR)  
 **Audiencia:** Admins, Developers, Partners  
 **Nivel:** Intermedio
 
@@ -8,17 +8,24 @@
 
 ## ¿Para qué sirve esto?
 
-Cuando configurás un sitio de Experience Cloud (colores, logo, banners, páginas, navegación), esa configuración vive dentro del org. Si el org vence, se elimina o necesitás migrar a otro ambiente, perdés todo el diseño visual y tenés que rehacerlo a mano.
+Cuando configurás un sitio de Experience Cloud (colores, logo, banners, páginas, navegación), toda esa configuración vive dentro del org de Salesforce.
 
-Este instructivo explica cómo exportar toda esa configuración como archivos versionables en GitHub, para poder restaurarla en cualquier org cuando lo necesites.
+Este instructivo explica cómo exportar esa configuración como archivos versionables en GitHub, para tenerla respaldada, trabajar con versiones y poder restaurarla o llevarla a otro ambiente cuando lo necesites.
 
 ---
 
 ## Pre-requisitos
 
-- [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) instalado
-- Proyecto SFDX configurado localmente
+- **[Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (gratis)** — herramienta de línea de comandos oficial de Salesforce. Permite interactuar con tus orgs desde la terminal: descargar metadata, deployar cambios, correr scripts, etc.
+
+- **Proyecto SFDX configurado localmente** — es una carpeta en tu computadora con una estructura específica que el CLI de Salesforce reconoce. Básicamente es donde van a quedar guardados los archivos que descargues del org. Si no tenés uno, crealo con:
+  ```bash
+  sf project generate --name mi-proyecto
+  cd mi-proyecto
+  ```
+
 - Acceso de administrador al org
+
 - Git instalado y repositorio configurado
 
 ---
@@ -101,7 +108,7 @@ git add force-app/main/default/experiences/
 git add force-app/main/default/sites/
 
 # Crear el commit
-git commit -m "Backup ExperienceBundle sitio Commerce Cloud"
+git commit -m "Backup ExperienceBundle sitio Experience Cloud"
 
 # Subir a GitHub
 git push origin main
@@ -130,7 +137,7 @@ sf project deploy start --metadata "ExperienceBundle" --target-org <alias-del-nu
 | Estructura de páginas y componentes | ✅ Sí |
 | Menú de navegación | ✅ Sí |
 | Configuración general del sitio | ✅ Sí |
-| Imágenes de productos (Commerce Cloud) | ❌ No — ver script Python de descarga |
+| Imágenes subidas al CMS | ❌ No — requieren descarga separada |
 | Datos (productos, precios, pedidos) | ❌ No — requiere exportación de datos |
 | Usuarios y perfiles | ❌ No |
 
@@ -140,18 +147,17 @@ sf project deploy start --metadata "ExperienceBundle" --target-org <alias-del-nu
 
 | Template | Compatible |
 |---|---|
-| LWR (Lightning Web Runtime) — Commerce Cloud B2B/B2C | ✅ Sí |
-| LWR — Experience Cloud moderno | ✅ Sí |
+| LWR (Lightning Web Runtime) — cualquier nube | ✅ Sí |
 | Aura (templates antiguos) | ❌ No compatible con ExperienceBundle |
 
 ---
 
 ## Notas adicionales
 
-- Este proceso funciona en producción, sandboxes y Developer Orgs
 - El retrieve es **no destructivo** — solo lee, nunca modifica el org
 - Los archivos resultantes son JSON/XML legibles y versionables en cualquier sistema de control de versiones
+- Funciona en producción, sandboxes y Developer Orgs
 
 ---
 
-*Documento generado como parte de la serie Salesforce Commerce Cloud B2B — Tutoriales para la comunidad.*
+*Parte de la serie de tutoriales Salesforce Experience Cloud.*
