@@ -402,9 +402,33 @@ git push origin main
 
 ## Sección B — Cómo exportar datos (productos, precios, pedidos)
 
-Los datos viven en objetos de Salesforce y se exportan via **SOQL** usando el Salesforce CLI. Cada objeto se exporta como un archivo CSV.
+Los datos viven en objetos estándar de Salesforce y se exportan via **SOQL** usando el Salesforce CLI. Cada objeto se exporta como un archivo CSV.
+
+> Estos objetos son compartidos entre nubes. Dependiendo de qué tengas activado en tu org, algunos serán más relevantes que otros — la tabla de abajo lo aclara.
+
+---
+
+### ¿Qué objeto corresponde a qué nube?
+
+| Objeto | Qué es | Usado en |
+|---|---|---|
+| `Product2` | Catálogo de productos | Commerce Cloud, Sales Cloud, CPQ |
+| `PricebookEntry` | Precios de cada producto en cada lista de precios | Commerce Cloud, Sales Cloud, CPQ |
+| `Order` | Pedidos confirmados | Commerce Cloud, Sales Cloud |
+| `Account` | Empresas o personas (clientes, partners) | Sales Cloud, Service Cloud, Commerce Cloud, MCA |
+| `Contact` | Personas vinculadas a una cuenta | Sales Cloud, Service Cloud, Commerce Cloud, MCA |
+| `Lead` | Prospectos que todavía no son clientes | Sales Cloud, MCA |
+| `Opportunity` | Oportunidades de venta en proceso | Sales Cloud, CPQ |
+| `Case` | Tickets o casos de soporte | Service Cloud |
+
+> **MCA (Marketing Cloud on Core / Marketing Cloud Advanced):** usa `Contact`, `Lead` y `Account` como base para segmentación, journeys y envíos. Exportar estos objetos es útil para tener un backup de la audiencia y los datos de contacto que alimentan tus campañas.
+
+---
 
 ### Exportar productos
+**Nubes:** Commerce Cloud, Sales Cloud, CPQ
+
+`Product2` es el catálogo maestro de productos del org. Contiene nombre, código, descripción y si está activo.
 
 ```bash
 sf data query \
@@ -417,12 +441,17 @@ sf data query \
 
 ```
 Id,Name,ProductCode,Description,IsActive,Family,StockKeepingUnit
-01tKa00000C02nAIAR,Agua Benedictino 500ml,16817,Agua purificada sin gas...,true,,16817-1
-01tKa00000C02nBIAR,Carpeta Buho Azul,80167AZ,Carpeta de cartulina...,true,,80167AZ-01
+01tKa00000C02nAIAR,Silla Ergonómica Pro,CHAIR-001,Silla de oficina ajustable...,true,Mobiliario,CHAIR-001-BLK
+01tKa00000C02nBIAR,Notebook Empresarial 15,NB-015,Notebook con 16GB RAM...,true,Tecnología,NB-015-SLV
 ...
 ```
 
+---
+
 ### Exportar precios
+**Nubes:** Commerce Cloud, Sales Cloud, CPQ
+
+`PricebookEntry` guarda el precio de cada producto para cada lista de precios. Un mismo producto puede tener precios distintos en distintas listas (precio normal, precio mayorista, precio con descuento, etc.).
 
 ```bash
 sf data query \
@@ -431,7 +460,21 @@ sf data query \
   --result-format csv > export/pricebook_entries.csv
 ```
 
-### Exportar pedidos (Orders)
+**Salida esperada en `export/pricebook_entries.csv`:**
+
+```
+Id,Product2Id,UnitPrice,CurrencyIsoCode,Pricebook2Id,Pricebook2.Name
+01uKa000006kQiP,01tKa00000C02nAIAR,299.99,USD,01sKa000004BRbR,Standard Price Book
+01uKa000006kQiQ,01tKa00000C02nAIAR,249.99,USD,01sKa000004BRbX,Lista Mayorista
+...
+```
+
+---
+
+### Exportar pedidos
+**Nubes:** Commerce Cloud, Sales Cloud
+
+`Order` representa un pedido confirmado. Útil para historial de compras y análisis.
 
 ```bash
 sf data query \
@@ -440,15 +483,45 @@ sf data query \
   --result-format csv > export/orders.csv
 ```
 
+**Salida esperada en `export/orders.csv`:**
+
+```
+Id,OrderNumber,Status,TotalAmount,AccountId,CreatedDate
+801Ka000001XmAB,00000101,Activated,1499.97,001Ka000002ZpQR,2026-05-01T14:23:00.000+0000
+801Ka000001XmAC,00000102,Draft,299.99,001Ka000002ZpQS,2026-05-03T09:11:00.000+0000
+...
+```
+
+---
+
+### Exportar contactos y cuentas
+**Nubes:** Sales Cloud, Service Cloud, Commerce Cloud, MCA
+
+`Account` y `Contact` son la base del CRM. En MCA estos registros alimentan la segmentación, los journeys y los envíos de campañas — tenerlos respaldados es clave si migrás de org.
+
+```bash
+sf data query \
+  --query "SELECT Id, Name, BillingCity, BillingCountry, Phone, Type FROM Account" \
+  --target-org <alias-de-tu-org> \
+  --result-format csv > export/accounts.csv
+
+sf data query \
+  --query "SELECT Id, FirstName, LastName, Email, AccountId, Title FROM Contact" \
+  --target-org <alias-de-tu-org> \
+  --result-format csv > export/contacts.csv
+```
+
+---
+
 ### Guardar todo en GitHub
 
 ```bash
 git add export/
-git commit -m "Backup datos — productos, precios, pedidos"
+git commit -m "Backup datos — productos, precios, pedidos, cuentas, contactos"
 git push origin main
 ```
 
-> **Nota:** Los datos exportados son una foto del momento. No se restauran automáticamente con un deploy — para reimportarlos en otro org necesitás un script de carga (como el `setup.py` del repo de demo).
+> **Nota:** Los datos exportados son una foto del momento. No se restauran automáticamente con un deploy — para reimportarlos en otro org necesitás un script de carga que lea los CSVs e inserte los registros via API.
 
 ---
 
@@ -461,6 +534,7 @@ git push origin main
 ---
 
 *Parte de la serie de tutoriales Salesforce Experience Cloud.*
+
 
 
 
