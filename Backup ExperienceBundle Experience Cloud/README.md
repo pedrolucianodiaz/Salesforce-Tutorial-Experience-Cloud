@@ -14,6 +14,41 @@ Este instructivo explica cómo exportar esa configuración como archivos version
 
 ---
 
+## LWR vs Aura — ¿Por qué esto solo funciona en LWR?
+
+Experience Cloud tiene dos frameworks de renderizado. Entender la diferencia explica por qué ExperienceBundle solo existe en uno de ellos.
+
+### Aura (el framework original)
+- **Lanzado:** 2014 con Salesforce Communities
+- Arquitectura basada en componentes Aura (propietarios de Salesforce)
+- La configuración del sitio está **embebida dentro del org** de forma no exportable como metadata estructurada
+- No tiene soporte para ExperienceBundle
+- Salesforce lo mantiene pero **no lo desarrolla activamente** — está en modo mantenimiento
+- Templates Aura más comunes: Customer Community, Partner Community, Customer Community Plus
+
+### LWR — Lightning Web Runtime (el framework moderno)
+- **Lanzado:** 2021 (GA en Winter '22)
+- Arquitectura moderna basada en estándares web (LWC, ES modules)
+- La configuración del sitio se expone como **metadata estructurada y exportable** → esto es el ExperienceBundle
+- Soporte completo para backup, versionado y deploy entre orgs via Salesforce CLI
+- Toda la inversión nueva de Salesforce va a LWR
+- Templates LWR más comunes: Build Your Own (LWR), Microsite (LWR), Commerce B2B/B2C
+
+### Resumen de diferencias
+
+| | Aura | LWR |
+|---|---|---|
+| Año de lanzamiento | 2014 | 2021 (GA Winter '22) |
+| Framework base | Componentes Aura | LWC + estándares web |
+| ExperienceBundle (backup/deploy) | ❌ No soportado | ✅ Soportado |
+| Velocidad de carga | Más lenta | Más rápida (SSR) |
+| Desarrollo activo por Salesforce | ❌ Solo mantenimiento | ✅ Sí |
+| Recomendado para proyectos nuevos | ❌ No | ✅ Sí |
+
+> **En resumen:** Aura no puede exportar su configuración como metadata porque fue diseñado antes de que Salesforce tuviera este modelo de versionado. LWR fue construido desde el inicio con esta capacidad. Si tu sitio es Aura, la única opción es reconfigurarlo manualmente o migrarlo a LWR.
+
+---
+
 ## Pre-requisitos
 
 - **[Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (gratis)** — herramienta de línea de comandos oficial de Salesforce. Permite interactuar con tus orgs desde la terminal: descargar metadata, deployar cambios, correr scripts, etc.
@@ -140,15 +175,6 @@ sf project deploy start --metadata "ExperienceBundle" --target-org <alias-del-nu
 | Imágenes subidas al CMS | ❌ No — requieren descarga separada |
 | Datos (productos, precios, pedidos) | ❌ No — requiere exportación de datos |
 | Usuarios y perfiles | ❌ No |
-
----
-
-## Sitios compatibles
-
-| Template | Compatible |
-|---|---|
-| LWR (Lightning Web Runtime) — cualquier nube | ✅ Sí |
-| Aura (templates antiguos) | ❌ No compatible con ExperienceBundle |
 
 ---
 
