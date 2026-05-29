@@ -195,9 +195,173 @@ sf project deploy start --metadata "ExperienceBundle" --target-org <alias-del-nu
 | Estructura de páginas y componentes | ✅ Sí |
 | Menú de navegación | ✅ Sí |
 | Configuración general del sitio | ✅ Sí |
-| Imágenes subidas al CMS | ❌ No — requieren descarga separada |
-| Datos (productos, precios, pedidos) | ❌ No — requiere exportación de datos |
+| Imágenes subidas al CMS | ❌ No — ver Sección A |
+| Datos (productos, precios, pedidos) | ❌ No — ver Sección B |
 | Usuarios y perfiles | ❌ No |
+
+---
+
+## Sección A — Cómo descargar imágenes del CMS
+
+Las imágenes subidas desde Experience Builder o desde la UI de Commerce Cloud viven en **ManagedContent** (el CMS de Salesforce), no en el ExperienceBundle. Hay que descargarlas por separado via API REST.
+
+### Script Python — descargar todas las imágenes del CMS
+
+Guardá este script como `download_cms_images.py` y correlo:
+
+```python
+#!/usr/bin/env python3
+"""
+Descarga todas las imágenes del CMS de Salesforce al directorio local.
+Uso: python3 download_cms_images.py --org <alias> --output ./imagenes
+"""
+import argparse, json, os, subprocess, urllib.request
+
+def get_org_info(org):
+    r = subprocess.run(["sf", "org", "display", "--target-org", org, "--json"],
+                       capture_output=True, text=True)
+    result = json.loads(r.stdout)["result"]
+    return result["accessToken"], result["instanceUrl"]
+
+def soql(query, org):
+    r = subprocess.run(["sf", "data", "query", "--query", query,
+                        "--target-org", org, "--json"],
+                       capture_output=True, text=True)
+    return json.loads(r.stdout).get("result", {}).get("records", [])
+
+def download(url, token, filepath):
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(req) as r:
+        with open(filepath, "wb") as f:
+            f.write(r.read())
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--org", required=True)
+parser.add_argument("--output", default="./cms_images")
+args = parser.parse_args()
+
+os.makedirs(args.output, exist_ok=True)
+token, instance = get_org_info(args.org)
+
+# Traer todos los contenidos de tipo imagen del CMS
+records = soql("SELECT Id, Name, ContentKey FROM ManagedContent ORDER BY Name", args.org)
+print(f"Encontrados: {len(records)} contenidos en CMS")
+
+for r in records:
+    key = r.get("ContentKey")
+    name = r["Name"]
+    if not key:
+        continue
+
+    # Obtener la URL real del archivo via API de CMS
+    url = f"{instance}/services/data/v62.0/connect/cms/contents/{key}"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req) as resp:
+            content = json.loads(resp.read())
+    except Exception as e:
+        print(f"  ✗ Error obteniendo metadata de {name}: {e}")
+        continue
+
+    # La URL del binario está en contentBody.source.url
+    source = content.get("contentBody", {}).get("source", {})
+    img_url = source.get("url")
+    filename = source.get("filename") or f"{name}.jpg"
+
+    if not img_url:
+        print(f"  ✗ Sin URL de imagen: {name}")
+        continue
+
+    full_url = instance + img_url if img_url.startswith("/") else img_url
+    filepath = os.path.join(args.output, filename)
+
+    try:
+        download(full_url, token, filepath)
+        print(f"  ✓ {filename}")
+    except Exception as e:
+        print(f"  ✗ Error descargando {filename}: {e}")
+
+print(f"\nImágenes guardadas en: {args.output}")
+```
+
+### Cómo correrlo
+
+```bash
+python3 download_cms_images.py --org <alias-de-tu-org> --output ./cms_images
+```
+
+**Salida esperada:**
+
+```
+Encontrados: 15 contenidos en CMS
+  ✓ logoprisachile.png
+  ✓ Banner-1-ejemplo.jpg
+  ✓ banner-bebidas-categoria.png
+  ✓ producto-agua-benedictino.jpg
+  ... (una línea por imagen)
+
+Imágenes guardadas en: ./cms_images
+```
+
+### Guardar en GitHub
+
+```bash
+git add cms_images/
+git commit -m "Backup imágenes CMS"
+git push origin main
+```
+
+---
+
+## Sección B — Cómo exportar datos (productos, precios, pedidos)
+
+Los datos viven en objetos de Salesforce y se exportan via **SOQL** usando el Salesforce CLI. Cada objeto se exporta como un archivo CSV.
+
+### Exportar productos
+
+```bash
+sf data query \
+  --query "SELECT Id, Name, ProductCode, Description, IsActive, Family, StockKeepingUnit FROM Product2 WHERE IsActive = true" \
+  --target-org <alias-de-tu-org> \
+  --result-format csv > export/products.csv
+```
+
+**Salida esperada en `export/products.csv`:**
+
+```
+Id,Name,ProductCode,Description,IsActive,Family,StockKeepingUnit
+01tKa00000C02nAIAR,Agua Benedictino 500ml,16817,Agua purificada sin gas...,true,,16817-1
+01tKa00000C02nBIAR,Carpeta Buho Azul,80167AZ,Carpeta de cartulina...,true,,80167AZ-01
+...
+```
+
+### Exportar precios
+
+```bash
+sf data query \
+  --query "SELECT Id, Product2Id, UnitPrice, CurrencyIsoCode, Pricebook2Id, Pricebook2.Name FROM PricebookEntry WHERE IsActive = true" \
+  --target-org <alias-de-tu-org> \
+  --result-format csv > export/pricebook_entries.csv
+```
+
+### Exportar pedidos (Orders)
+
+```bash
+sf data query \
+  --query "SELECT Id, OrderNumber, Status, TotalAmount, AccountId, CreatedDate FROM Order ORDER BY CreatedDate DESC" \
+  --target-org <alias-de-tu-org> \
+  --result-format csv > export/orders.csv
+```
+
+### Guardar todo en GitHub
+
+```bash
+git add export/
+git commit -m "Backup datos — productos, precios, pedidos"
+git push origin main
+```
+
+> **Nota:** Los datos exportados son una foto del momento. No se restauran automáticamente con un deploy — para reimportarlos en otro org necesitás un script de carga (como el `setup.py` del repo de demo).
 
 ---
 
@@ -210,3 +374,4 @@ sf project deploy start --metadata "ExperienceBundle" --target-org <alias-del-nu
 ---
 
 *Parte de la serie de tutoriales Salesforce Experience Cloud.*
+
