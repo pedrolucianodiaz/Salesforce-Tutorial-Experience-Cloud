@@ -284,24 +284,54 @@ for r in records:
 print(f"\nImágenes guardadas en: {args.output}")
 ```
 
-### Cómo correrlo
+### ¿Cómo se corre este script?
+
+Tenés dos opciones:
+
+**Opción 1 — Terminal (recomendado)**
+
+Es la forma más directa. Abrís una terminal, navegás a la carpeta del proyecto y corrés:
 
 ```bash
 python3 download_cms_images.py --org <alias-de-tu-org> --output ./cms_images
 ```
 
-**Salida esperada:**
+**Salida esperada en terminal:**
 
 ```
-Encontrados: 15 contenidos en CMS
-  ✓ logoprisachile.png
-  ✓ Banner-1-ejemplo.jpg
-  ✓ banner-bebidas-categoria.png
-  ✓ producto-agua-benedictino.jpg
-  ... (una línea por imagen)
+Encontrados: 8 contenidos en CMS
+  ✓ logo-empresa.png
+  ✓ banner-hero-inicio.jpg
+  ✓ banner-categoria-verano.png
+  ✓ banner-promocion-descuento.jpg
+  ✓ banner-landing-servicio.png
+  ✓ imagen-destacada-home.jpg
+  ... (una línea por archivo)
 
 Imágenes guardadas en: ./cms_images
 ```
+
+**Opción 2 — Postman**
+
+Si preferís no usar la terminal, podés hacer la misma descarga con Postman llamando directamente a la API REST de Salesforce:
+
+1. **Obtener el token de acceso** desde tu org:
+   ```bash
+   sf org display --target-org <alias> --json
+   ```
+   Copiá el valor de `accessToken` e `instanceUrl`.
+
+2. **Listar los contenidos del CMS** con una request GET en Postman:
+   ```
+   GET https://<instanceUrl>/services/data/v62.0/connect/cms/contents/<ContentKey>
+   Authorization: Bearer <accessToken>
+   ```
+
+3. **Obtener la URL del binario** desde el campo `contentBody.source.url` de la respuesta JSON.
+
+4. **Descargar la imagen** haciendo otra request GET a esa URL con el mismo `Authorization: Bearer`.
+
+> La diferencia es que el script Python automatiza estos 4 pasos para todas las imágenes de una sola vez. Con Postman hacés lo mismo pero imagen por imagen, lo cual sirve si querés inspeccionar o descargar una imagen puntual.
 
 ### Guardar en GitHub
 
@@ -374,4 +404,5 @@ git push origin main
 ---
 
 *Parte de la serie de tutoriales Salesforce Experience Cloud.*
+
 
