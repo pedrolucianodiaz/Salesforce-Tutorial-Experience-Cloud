@@ -418,12 +418,20 @@ Product2 (el producto)
 
 El ExperienceBundle no exporta ninguna de estas tres capas. Para respaldarlas necesitás dos cosas:
 
-1. **El mapeo** — qué imagen está asociada a qué producto (via SOQL)
+1. **El mapeo** — qué imagen está asociada a qué producto. Se obtiene con **SOQL** (Salesforce Object Query Language), que es el lenguaje de consultas de Salesforce, similar a SQL. Se puede correr desde la terminal, desde Python o desde Postman.
 2. **Los binarios** — los archivos de imagen físicos (via Sección A)
 
 ---
 
 ### Paso 1 — Exportar el mapeo producto → imagen
+
+Tenés tres formas de hacer esta consulta:
+
+---
+
+**Opción A — Terminal (con Salesforce CLI instalado)**
+
+Es la forma más directa. El mismo CLI que usaste en los pasos anteriores ya puede correr SOQL:
 
 ```bash
 sf data query \
@@ -442,13 +450,87 @@ Id,ProductId,ManagedContentId,SortOrder,ElectronicMediaGroupId
 ...
 ```
 
-Cada fila es una imagen asociada a un producto. El campo `SortOrder` indica el orden cuando hay varias imágenes para el mismo producto. El `ManagedContentId` es la referencia al archivo en el CMS.
+---
+
+**Opción B — Python**
+
+Si ya tenés Python instalado podés usar el mismo patrón que el script de la Sección A:
+
+```python
+import subprocess, json
+
+result = subprocess.run(
+    ["sf", "data", "query",
+     "--query", "SELECT Id, ProductId, ManagedContentId, SortOrder, ElectronicMediaGroupId FROM ProductMedia ORDER BY ProductId, SortOrder",
+     "--target-org", "<alias-de-tu-org>",
+     "--json"],
+    capture_output=True, text=True
+)
+records = json.loads(result.stdout)["result"]["records"]
+for r in records:
+    print(r["ProductId"], "→", r["ManagedContentId"], "(orden:", r["SortOrder"], ")")
+```
+
+---
+
+**Opción C — Postman**
+
+Si no tenés el CLI instalado, podés hacer la misma consulta SOQL via la API REST de Salesforce.
+
+**Antes de empezar:** obtené tu `accessToken` e `instanceUrl` desde cualquier terminal con el CLI, o desde Setup → Security → Session Management en la UI.
+
+**Llamada en Postman:**
+
+```
+Método:  GET
+URL:     https://<instanceUrl>/services/data/v62.0/query?q=SELECT+Id,ProductId,ManagedContentId,SortOrder,ElectronicMediaGroupId+FROM+ProductMedia+ORDER+BY+ProductId,SortOrder
+
+Headers:
+  Authorization: Bearer <accessToken>
+  Content-Type:  application/json
+```
+
+> La query SOQL va codificada en la URL — los espacios se reemplazan por `+` y las comas no llevan espacios.
+
+**Respuesta que devuelve Salesforce:**
+
+```json
+{
+  "totalSize": 3,
+  "done": true,
+  "records": [
+    {
+      "Id": "02uKa000001XAAB",
+      "ProductId": "01tKa00000C02nAIAR",
+      "ManagedContentId": "20YKa000000KZ3kKAG",
+      "SortOrder": 0,
+      "ElectronicMediaGroupId": "2mgKa000000etOXIAY"
+    },
+    {
+      "Id": "02uKa000001XAAC",
+      "ProductId": "01tKa00000C02nBIAR",
+      "ManagedContentId": "20YKa000000KZ3lKAG",
+      "SortOrder": 0,
+      "ElectronicMediaGroupId": "2mgKa000000etOXIAY"
+    }
+  ]
+}
+```
+
+Guardá el JSON o copiá los `ManagedContentId` — los vas a necesitar para el Paso 2.
+
+---
+
+Cada fila es una imagen asociada a un producto. El campo `SortOrder` indica el orden cuando hay varias imágenes para el mismo producto. El `ManagedContentId` es la referencia al archivo físico en el CMS.
 
 ---
 
 ### Paso 2 — Descargar los binarios de las imágenes
 
-Con el mapeo guardado, descargá los archivos físicos usando el script de la **Sección A**. Ese script recorre todos los `ManagedContent` del CMS y descarga cada imagen a una carpeta local.
+Con el mapeo en mano, descargá los archivos físicos. Tenés las mismas tres opciones:
+
+- **Terminal / Python** → usá el script de la **Sección A**, que descarga todas las imágenes del CMS automáticamente
+- **Postman** → para cada `ManagedContentId`, seguí los pasos de la **Sección A — Opción Postman** (Llamada 1 para obtener la URL, Llamada 2 para descargar el binario)
 
 ---
 
@@ -486,6 +568,7 @@ git push origin main
 ---
 
 *Parte de la serie de tutoriales Salesforce Experience Cloud.*
+
 
 
 
