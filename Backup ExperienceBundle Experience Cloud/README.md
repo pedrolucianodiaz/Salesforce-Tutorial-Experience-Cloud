@@ -88,11 +88,34 @@ Esta opción viene deshabilitada por defecto. Sin ella, el CLI no puede exportar
 sf org display --target-org <alias-de-tu-org>
 ```
 
-Deberías ver el `instanceUrl` y `username` del org. Si da error, autenticarte primero:
+**Si la conexión está ok**, vas a ver algo así:
+
+```
+=== Org Description
+ KEY             VALUE
+ ───────────     ──────────────────────────────────────────────
+ Access Token    00DKa000...
+ Alias           mi-sdo
+ Client Id       PlatformCLI
+ Instance Url    https://tu-org.my.salesforce.com
+ Org Id          00DKa000000eNGGf
+ Username        tu.usuario@ejemplo.com
+```
+
+**Si da error** porque el org no está autenticado, verás algo como:
+
+```
+Error (NoOrgFound): The org with alias or username "mi-sdo" is not connected.
+Run "sf org login web --alias mi-sdo" to authenticate.
+```
+
+En ese caso, autenticarte primero:
 
 ```bash
 sf org login web --alias <alias-de-tu-org>
 ```
+
+Esto va a abrir el navegador para que ingreses con tu usuario y contraseña de Salesforce. Una vez que iniciás sesión, el CLI queda conectado y podés continuar con los pasos siguientes.
 
 ---
 
