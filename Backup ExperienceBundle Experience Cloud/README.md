@@ -203,7 +203,7 @@ sf project deploy start --metadata "ExperienceBundle" --target-org <alias-del-nu
 
 ## Sección A — Cómo descargar imágenes del CMS
 
-Las imágenes subidas desde Experience Builder o desde la UI de Commerce Cloud viven en **ManagedContent** (el CMS de Salesforce), no en el ExperienceBundle. Hay que descargarlas por separado via API REST.
+Las imágenes subidas desde Experience Builder viven en **ManagedContent** (el CMS de Salesforce), no en el ExperienceBundle. Hay que descargarlas por separado via API REST.
 
 ### Script Python — descargar todas las imágenes del CMS
 
@@ -402,9 +402,9 @@ git push origin main
 
 ## Sección B — Imágenes de productos vinculadas al catálogo
 
-Cuando un sitio de Experience Cloud muestra productos (una landing de catálogo, una comunidad con productos destacados), las imágenes que aparecen no vienen del ExperienceBundle — viven en **`ProductMedia`**, que las vincula al CMS (`ManagedContent`).
+Cuando un sitio de Experience Cloud muestra productos — una landing de comunidad con productos destacados, una página de catálogo, una campaña de Marketing con imágenes de productos, o un storefront — las imágenes que aparecen no vienen del ExperienceBundle. Viven en **`ProductMedia`**, que las vincula al CMS (`ManagedContent`).
 
-Es el mismo mecanismo que usa Commerce Cloud para mostrar imágenes en el storefront. Son el mismo objeto, la misma imagen, consumida por distintas superficies.
+Es el mismo objeto, la misma imagen en el CMS, consumida por distintas nubes y superficies al mismo tiempo.
 
 ---
 
@@ -543,7 +543,7 @@ git commit -m "Backup imágenes de productos — mapeo y binarios"
 git push origin main
 ```
 
-> Para exportar los datos del catálogo (productos, precios, pedidos, cuentas) ese tema corresponde a un tutorial separado — el foco acá es el respaldo visual del sitio.
+> Para exportar los datos del catálogo (productos, precios, pedidos, cuentas) ese tema corresponde a un tutorial separado — el foco acá es el respaldo visual del sitio de Experience Cloud.
 
 ---
 
@@ -568,6 +568,7 @@ git push origin main
 ---
 
 *Parte de la serie de tutoriales Salesforce Experience Cloud.*
+
 
 
 
