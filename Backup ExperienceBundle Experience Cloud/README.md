@@ -412,7 +412,8 @@ Los datos viven en objetos estándar de Salesforce y se exportan via **SOQL** us
 
 | Objeto | Qué es | Usado en |
 |---|---|---|
-| `Product2` | Catálogo de productos | Commerce Cloud, Sales Cloud, CPQ |
+| `Product2` | Catálogo de productos | Commerce Cloud, Sales Cloud, Service Cloud, Experience Cloud, CPQ |
+| `ProductMedia` | Imágenes asociadas a cada producto (vía CMS) | Commerce Cloud, Experience Cloud |
 | `PricebookEntry` | Precios de cada producto en cada lista de precios | Commerce Cloud, Sales Cloud, CPQ |
 | `Order` | Pedidos confirmados | Commerce Cloud, Sales Cloud |
 | `Account` | Empresas o personas (clientes, partners) | Sales Cloud, Service Cloud, Commerce Cloud, MCA |
@@ -423,12 +424,14 @@ Los datos viven en objetos estándar de Salesforce y se exportan via **SOQL** us
 
 > **MCA (Marketing Cloud on Core / Marketing Cloud Advanced):** usa `Contact`, `Lead` y `Account` como base para segmentación, journeys y envíos. Exportar estos objetos es útil para tener un backup de la audiencia y los datos de contacto que alimentan tus campañas.
 
+> **Experience Cloud y productos:** una landing o comunidad construida en Experience Cloud puede mostrar productos directamente desde `Product2`. Las imágenes que aparecen en esa landing viven en `ProductMedia` → `ManagedContent` (el CMS), el mismo lugar donde las almacena Commerce Cloud. Es decir, la imagen de un producto es un objeto único en el org que puede ser consumido por múltiples nubes y superficies al mismo tiempo.
+
 ---
 
 ### Exportar productos
-**Nubes:** Commerce Cloud, Sales Cloud, CPQ
+**Nubes:** Commerce Cloud, Sales Cloud, Service Cloud, Experience Cloud, CPQ
 
-`Product2` es el catálogo maestro de productos del org. Contiene nombre, código, descripción y si está activo.
+`Product2` es el catálogo maestro de productos del org. Contiene nombre, código, descripción y si está activo. Es un objeto compartido — el mismo producto que se vende en un storefront de Commerce puede aparecer en una Opportunity de Sales, en un Asset de Service, o en una landing de Experience Cloud.
 
 ```bash
 sf data query \
@@ -445,6 +448,31 @@ Id,Name,ProductCode,Description,IsActive,Family,StockKeepingUnit
 01tKa00000C02nBIAR,Notebook Empresarial 15,NB-015,Notebook con 16GB RAM...,true,Tecnología,NB-015-SLV
 ...
 ```
+
+### Exportar imágenes de productos
+**Nubes:** Commerce Cloud, Experience Cloud
+
+Las imágenes de productos no están en `Product2` — están en `ProductMedia`, que las linkea al CMS (`ManagedContent`). Son las mismas imágenes que aparecen tanto en el storefront de Commerce como en una landing de Experience Cloud que muestre un catálogo.
+
+Para exportar qué imágenes están asociadas a qué producto:
+
+```bash
+sf data query \
+  --query "SELECT Id, ProductId, ManagedContentId, SortOrder, ElectronicMediaGroupId FROM ProductMedia ORDER BY ProductId, SortOrder" \
+  --target-org <alias-de-tu-org> \
+  --result-format csv > export/product_media.csv
+```
+
+**Salida esperada en `export/product_media.csv`:**
+
+```
+Id,ProductId,ManagedContentId,SortOrder,ElectronicMediaGroupId
+02uKa000001XAAB,01tKa00000C02nAIAR,20YKa000000KZ3kKAG,0,2mgKa000000etOXIAY
+02uKa000001XAAC,01tKa00000C02nBIAR,20YKa000000KZ3lKAG,0,2mgKa000000etOXIAY
+...
+```
+
+> El `ManagedContentId` es la referencia al archivo en el CMS. Para descargar los binarios de las imágenes usá el script de la **Sección A** — este CSV te dice qué imagen corresponde a qué producto, pero el archivo físico está en el CMS.
 
 ---
 
@@ -534,6 +562,7 @@ git push origin main
 ---
 
 *Parte de la serie de tutoriales Salesforce Experience Cloud.*
+
 
 
 
