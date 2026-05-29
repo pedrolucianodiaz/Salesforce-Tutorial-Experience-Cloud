@@ -196,7 +196,7 @@ sf project deploy start --metadata "ExperienceBundle" --target-org <alias-del-nu
 | Menú de navegación | ✅ Sí |
 | Configuración general del sitio | ✅ Sí |
 | Imágenes subidas al CMS | ❌ No — ver Sección A |
-| Datos (productos, precios, pedidos) | ❌ No — ver Sección B |
+| Imágenes de productos (vinculadas al catálogo) | ❌ No — ver Sección B |
 | Usuarios y perfiles | ❌ No |
 
 ---
@@ -400,61 +400,30 @@ git push origin main
 
 ---
 
-## Sección B — Cómo exportar datos (productos, precios, pedidos)
+## Sección B — Imágenes de productos vinculadas al catálogo
 
-Los datos viven en objetos estándar de Salesforce y se exportan via **SOQL** usando el Salesforce CLI. Cada objeto se exporta como un archivo CSV.
+Cuando un sitio de Experience Cloud muestra productos (una landing de catálogo, una comunidad con productos destacados), las imágenes que aparecen no vienen del ExperienceBundle — viven en **`ProductMedia`**, que las vincula al CMS (`ManagedContent`).
 
-> Estos objetos son compartidos entre nubes. Dependiendo de qué tengas activado en tu org, algunos serán más relevantes que otros — la tabla de abajo lo aclara.
-
----
-
-### ¿Qué objeto corresponde a qué nube?
-
-| Objeto | Qué es | Usado en |
-|---|---|---|
-| `Product2` | Catálogo de productos | Commerce Cloud, Sales Cloud, Service Cloud, Experience Cloud, CPQ |
-| `ProductMedia` | Imágenes asociadas a cada producto (vía CMS) | Commerce Cloud, Experience Cloud |
-| `PricebookEntry` | Precios de cada producto en cada lista de precios | Commerce Cloud, Sales Cloud, CPQ |
-| `Order` | Pedidos confirmados | Commerce Cloud, Sales Cloud |
-| `Account` | Empresas o personas (clientes, partners) | Sales Cloud, Service Cloud, Commerce Cloud, MCA |
-| `Contact` | Personas vinculadas a una cuenta | Sales Cloud, Service Cloud, Commerce Cloud, MCA |
-| `Lead` | Prospectos que todavía no son clientes | Sales Cloud, MCA |
-| `Opportunity` | Oportunidades de venta en proceso | Sales Cloud, CPQ |
-| `Case` | Tickets o casos de soporte | Service Cloud |
-
-> **MCA (Marketing Cloud on Core / Marketing Cloud Advanced):** usa `Contact`, `Lead` y `Account` como base para segmentación, journeys y envíos. Exportar estos objetos es útil para tener un backup de la audiencia y los datos de contacto que alimentan tus campañas.
-
-> **Experience Cloud y productos:** una landing o comunidad construida en Experience Cloud puede mostrar productos directamente desde `Product2`. Las imágenes que aparecen en esa landing viven en `ProductMedia` → `ManagedContent` (el CMS), el mismo lugar donde las almacena Commerce Cloud. Es decir, la imagen de un producto es un objeto único en el org que puede ser consumido por múltiples nubes y superficies al mismo tiempo.
+Es el mismo mecanismo que usa Commerce Cloud para mostrar imágenes en el storefront. Son el mismo objeto, la misma imagen, consumida por distintas superficies.
 
 ---
 
-### Exportar productos
-**Nubes:** Commerce Cloud, Sales Cloud, Service Cloud, Experience Cloud, CPQ
-
-`Product2` es el catálogo maestro de productos del org. Contiene nombre, código, descripción y si está activo. Es un objeto compartido — el mismo producto que se vende en un storefront de Commerce puede aparecer en una Opportunity de Sales, en un Asset de Service, o en una landing de Experience Cloud.
-
-```bash
-sf data query \
-  --query "SELECT Id, Name, ProductCode, Description, IsActive, Family, StockKeepingUnit FROM Product2 WHERE IsActive = true" \
-  --target-org <alias-de-tu-org> \
-  --result-format csv > export/products.csv
-```
-
-**Salida esperada en `export/products.csv`:**
+### Cómo funciona la relación
 
 ```
-Id,Name,ProductCode,Description,IsActive,Family,StockKeepingUnit
-01tKa00000C02nAIAR,Silla Ergonómica Pro,CHAIR-001,Silla de oficina ajustable...,true,Mobiliario,CHAIR-001-BLK
-01tKa00000C02nBIAR,Notebook Empresarial 15,NB-015,Notebook con 16GB RAM...,true,Tecnología,NB-015-SLV
-...
+Product2 (el producto)
+    └── ProductMedia (el vínculo)
+            └── ManagedContent (la imagen en el CMS)
 ```
 
-### Exportar imágenes de productos
-**Nubes:** Commerce Cloud, Experience Cloud
+El ExperienceBundle no exporta ninguna de estas tres capas. Para respaldarlas necesitás dos cosas:
 
-Las imágenes de productos no están en `Product2` — están en `ProductMedia`, que las linkea al CMS (`ManagedContent`). Son las mismas imágenes que aparecen tanto en el storefront de Commerce como en una landing de Experience Cloud que muestre un catálogo.
+1. **El mapeo** — qué imagen está asociada a qué producto (via SOQL)
+2. **Los binarios** — los archivos de imagen físicos (via Sección A)
 
-Para exportar qué imágenes están asociadas a qué producto:
+---
+
+### Paso 1 — Exportar el mapeo producto → imagen
 
 ```bash
 sf data query \
@@ -469,75 +438,30 @@ sf data query \
 Id,ProductId,ManagedContentId,SortOrder,ElectronicMediaGroupId
 02uKa000001XAAB,01tKa00000C02nAIAR,20YKa000000KZ3kKAG,0,2mgKa000000etOXIAY
 02uKa000001XAAC,01tKa00000C02nBIAR,20YKa000000KZ3lKAG,0,2mgKa000000etOXIAY
+02uKa000001XAAD,01tKa00000C02nBIAR,20YKa000000KZ3mKAG,1,2mgKa000000etOXIAY
 ...
 ```
 
-> El `ManagedContentId` es la referencia al archivo en el CMS. Para descargar los binarios de las imágenes usá el script de la **Sección A** — este CSV te dice qué imagen corresponde a qué producto, pero el archivo físico está en el CMS.
+Cada fila es una imagen asociada a un producto. El campo `SortOrder` indica el orden cuando hay varias imágenes para el mismo producto. El `ManagedContentId` es la referencia al archivo en el CMS.
 
 ---
 
-### Exportar precios
-**Nubes:** Commerce Cloud, Sales Cloud, CPQ
+### Paso 2 — Descargar los binarios de las imágenes
 
-`PricebookEntry` guarda el precio de cada producto para cada lista de precios. Un mismo producto puede tener precios distintos en distintas listas (precio normal, precio mayorista, precio con descuento, etc.).
-
-```bash
-sf data query \
-  --query "SELECT Id, Product2Id, UnitPrice, CurrencyIsoCode, Pricebook2Id, Pricebook2.Name FROM PricebookEntry WHERE IsActive = true" \
-  --target-org <alias-de-tu-org> \
-  --result-format csv > export/pricebook_entries.csv
-```
-
-**Salida esperada en `export/pricebook_entries.csv`:**
-
-```
-Id,Product2Id,UnitPrice,CurrencyIsoCode,Pricebook2Id,Pricebook2.Name
-01uKa000006kQiP,01tKa00000C02nAIAR,299.99,USD,01sKa000004BRbR,Standard Price Book
-01uKa000006kQiQ,01tKa00000C02nAIAR,249.99,USD,01sKa000004BRbX,Lista Mayorista
-...
-```
+Con el mapeo guardado, descargá los archivos físicos usando el script de la **Sección A**. Ese script recorre todos los `ManagedContent` del CMS y descarga cada imagen a una carpeta local.
 
 ---
 
-### Exportar pedidos
-**Nubes:** Commerce Cloud, Sales Cloud
-
-`Order` representa un pedido confirmado. Útil para historial de compras y análisis.
+### Guardar en GitHub
 
 ```bash
-sf data query \
-  --query "SELECT Id, OrderNumber, Status, TotalAmount, AccountId, CreatedDate FROM Order ORDER BY CreatedDate DESC" \
-  --target-org <alias-de-tu-org> \
-  --result-format csv > export/orders.csv
+git add export/product_media.csv
+git add cms_images/
+git commit -m "Backup imágenes de productos — mapeo y binarios"
+git push origin main
 ```
 
-**Salida esperada en `export/orders.csv`:**
-
-```
-Id,OrderNumber,Status,TotalAmount,AccountId,CreatedDate
-801Ka000001XmAB,00000101,Activated,1499.97,001Ka000002ZpQR,2026-05-01T14:23:00.000+0000
-801Ka000001XmAC,00000102,Draft,299.99,001Ka000002ZpQS,2026-05-03T09:11:00.000+0000
-...
-```
-
----
-
-### Exportar contactos y cuentas
-**Nubes:** Sales Cloud, Service Cloud, Commerce Cloud, MCA
-
-`Account` y `Contact` son la base del CRM. En MCA estos registros alimentan la segmentación, los journeys y los envíos de campañas — tenerlos respaldados es clave si migrás de org.
-
-```bash
-sf data query \
-  --query "SELECT Id, Name, BillingCity, BillingCountry, Phone, Type FROM Account" \
-  --target-org <alias-de-tu-org> \
-  --result-format csv > export/accounts.csv
-
-sf data query \
-  --query "SELECT Id, FirstName, LastName, Email, AccountId, Title FROM Contact" \
-  --target-org <alias-de-tu-org> \
-  --result-format csv > export/contacts.csv
-```
+> Para exportar los datos del catálogo (productos, precios, pedidos, cuentas) ese tema corresponde a un tutorial separado — el foco acá es el respaldo visual del sitio.
 
 ---
 
@@ -562,6 +486,7 @@ git push origin main
 ---
 
 *Parte de la serie de tutoriales Salesforce Experience Cloud.*
+
 
 
 
