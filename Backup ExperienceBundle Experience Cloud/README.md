@@ -313,25 +313,82 @@ Imágenes guardadas en: ./cms_images
 
 **Opción 2 — Postman**
 
-Si preferís no usar la terminal, podés hacer la misma descarga con Postman llamando directamente a la API REST de Salesforce:
+Si preferís no usar la terminal, podés hacer la misma descarga con Postman llamando directamente a la API REST de Salesforce. Son dos llamadas por imagen:
 
-1. **Obtener el token de acceso** desde tu org:
-   ```bash
-   sf org display --target-org <alias> --json
-   ```
-   Copiá el valor de `accessToken` e `instanceUrl`.
+---
 
-2. **Listar los contenidos del CMS** con una request GET en Postman:
-   ```
-   GET https://<instanceUrl>/services/data/v62.0/connect/cms/contents/<ContentKey>
-   Authorization: Bearer <accessToken>
-   ```
+**Llamada 1 — Obtener la metadata de la imagen (y su URL de descarga)**
 
-3. **Obtener la URL del binario** desde el campo `contentBody.source.url` de la respuesta JSON.
+Antes de hacer esta llamada, necesitás el `accessToken` y el `instanceUrl` de tu org:
 
-4. **Descargar la imagen** haciendo otra request GET a esa URL con el mismo `Authorization: Bearer`.
+```bash
+sf org display --target-org <alias> --json
+```
 
-> La diferencia es que el script Python automatiza estos 4 pasos para todas las imágenes de una sola vez. Con Postman hacés lo mismo pero imagen por imagen, lo cual sirve si querés inspeccionar o descargar una imagen puntual.
+Luego en Postman:
+
+```
+Método:  GET
+URL:     https://<instanceUrl>/services/data/v62.0/connect/cms/contents/<ContentKey>
+
+Headers:
+  Authorization: Bearer <accessToken>
+  Content-Type:  application/json
+```
+
+Respuesta que devuelve Salesforce:
+
+```json
+{
+  "contentKey": "MC2ZRH5GYHAZESRAEJEMNMIIJFRI",
+  "name": "banner-hero-inicio",
+  "contentBody": {
+    "source": {
+      "nodeType": "MEDIA",
+      "mediaType": "IMAGE",
+      "filename": "banner-hero-inicio.png",
+      "mimeType": "image/png",
+      "url": "/cms/media/MC2ZRH5GYHAZESRAEJEMNMIIJFRI?cb=05TKa00002CVe0k"
+    },
+    "title": "banner-hero-inicio"
+  }
+}
+```
+
+El campo que te interesa es `contentBody.source.url` — esa es la ruta al binario de la imagen.
+
+---
+
+**Llamada 2 — Descargar el binario de la imagen**
+
+Con la URL del paso anterior:
+
+```
+Método:  GET
+URL:     https://<instanceUrl>/cms/media/MC2ZRH5GYHAZESRAEJEMNMIIJFRI?cb=05TKa00002CVe0k
+
+Headers:
+  Authorization: Bearer <accessToken>
+```
+
+Postman va a recibir el archivo de imagen directamente. Para guardarlo: en la respuesta hacé click en **Save Response → Save to a file**.
+
+---
+
+> El script Python hace exactamente estas dos llamadas por cada imagen del CMS, de forma automática para todas a la vez. Con Postman hacés lo mismo pero imagen por imagen, lo cual sirve para inspeccionar o descargar una imagen puntual sin necesidad de correr código.
+
+---
+
+**¿Qué necesitás instalado para correr el script Python?**
+
+Solo dos cosas, ambas gratuitas:
+
+| Requisito | Para qué sirve | Cómo instalarlo |
+|---|---|---|
+| **Python 3** | Correr el script | [python.org/downloads](https://www.python.org/downloads/) — en Mac ya viene preinstalado |
+| **Salesforce CLI** | Obtener el token del org automáticamente | [developer.salesforce.com/tools/salesforcecli](https://developer.salesforce.com/tools/salesforcecli) |
+
+El script no usa ninguna librería externa — solo módulos que vienen incluidos con Python (`json`, `os`, `subprocess`, `urllib`). No necesitás correr `pip install` ni nada adicional.
 
 ### Guardar en GitHub
 
@@ -404,5 +461,6 @@ git push origin main
 ---
 
 *Parte de la serie de tutoriales Salesforce Experience Cloud.*
+
 
 
